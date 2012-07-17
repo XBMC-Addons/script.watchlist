@@ -114,34 +114,36 @@ class Main:
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": {"properties": ["title", "playcount", "plot", "season", "episode", "showtitle", "thumbnail", "file", "lastplayed", "rating"], "sort": {"method": "episode"} }, "id": 1}' )
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
-        if json_response['result'].has_key('episodes'):
-            json_response = json_response['result']['episodes']
-            # our list is sorted by episode number, secondary we sort by tvshow title (itertools.groupy needs contiguous items) and split it into seperate lists for each tvshow
-            episodes = [list(group) for key,group in itertools.groupby(sorted(json_response, key=itemgetter('showtitle')), key=itemgetter('showtitle'))]
-        # fetch all tvshows, sorted by title 
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "id": 1}')
-        json_query = unicode(json_query, 'utf-8', errors='ignore')
-        json_response = simplejson.loads(json_query)
-        if json_response['result'].has_key('tvshows'):
-            for count, tvshow in enumerate(json_response['result']['tvshows']):
-                item = [tvshow['tvshowid'], tvshow['thumbnail'], tvshow['studio'], tvshow['title'], tvshow['fanart'], []]
-                for episodelist in episodes:
-                    if episodelist[0]['showtitle'] == item[3]:
-                        item[5] = episodelist
-                        break
-                self.tvshows.append(item)
+        if json_response.has_key('result'):
+            if json_response['result'].has_key('episodes'):
+                json_response = json_response['result']['episodes']
+                # our list is sorted by episode number, secondary we sort by tvshow title (itertools.groupy needs contiguous items) and split it into seperate lists for each tvshow
+                episodes = [list(group) for key,group in itertools.groupby(sorted(json_response, key=itemgetter('showtitle')), key=itemgetter('showtitle'))]
+            # fetch all tvshows, sorted by title 
+            json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "id": 1}')
+            json_query = unicode(json_query, 'utf-8', errors='ignore')
+            json_response = simplejson.loads(json_query)
+            if json_response['result'].has_key('tvshows'):
+                for count, tvshow in enumerate(json_response['result']['tvshows']):
+                    item = [tvshow['tvshowid'], tvshow['thumbnail'], tvshow['studio'], tvshow['title'], tvshow['fanart'], []]
+                    for episodelist in episodes:
+                        if episodelist[0]['showtitle'] == item[3]:
+                            item[5] = episodelist
+                            break
+                    self.tvshows.append(item)
         log("tv show list: %s items" % len(self.tvshows))
 
     def _fetch_seasonthumb( self, tvshowid, seasonnumber ):
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetSeasons", "params": {"properties": ["season", "thumbnail"], "tvshowid":%s }, "id": 1}' % tvshowid)
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
-        if json_response['result'].has_key('seasons'):
-            for item in json_response['result']['seasons']:
-                season = "%.2d" % float(item['season'])
-                if season == seasonnumber:
-                    thumbnail = item['thumbnail']
-                    return thumbnail
+        if json_response.has_key('result'):
+            if json_response['result'].has_key('seasons'):
+                for item in json_response['result']['seasons']:
+                    season = "%.2d" % float(item['season'])
+                    if season == seasonnumber:
+                        thumbnail = item['thumbnail']
+                        return thumbnail
 
     def _fetch_episodes( self ):
         self.episodes = []
@@ -209,24 +211,25 @@ class Main:
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "AudioLibrary.GetSongs", "params": {"properties": ["playcount", "albumid"], "sort": { "method": "album" } }, "id": 1}')
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
-        if (json_response['result'] != None) and (json_response['result'].has_key('songs')):
-            for item in json_response['result']['songs']:
-                albumid = item['albumid']
-                if albumid != '':
-                    # ignore single tracks that do not belong to an album
-                    if albumid != previousid:
-                        # new album
-                        albumplaycount = 0
-                        playcount = item['playcount']
-                        albumplaycount = albumplaycount + playcount
-                        previousid = albumid
-                    else:
-                        # song from the same album
-                        playcount = item['playcount']
-                        albumplaycount = albumplaycount + playcount
-                    if playcount != 0:
-                        # don't add unplayed items
-                        self.albumsids.update({albumid: albumplaycount})
+        if json_response.has_key('result'):
+            if (json_response['result'] != None) and (json_response['result'].has_key('songs')):
+                for item in json_response['result']['songs']:
+                    albumid = item['albumid']
+                    if albumid != '':
+                        # ignore single tracks that do not belong to an album
+                        if albumid != previousid:
+                            # new album
+                            albumplaycount = 0
+                            playcount = item['playcount']
+                            albumplaycount = albumplaycount + playcount
+                            previousid = albumid
+                        else:
+                            # song from the same album
+                            playcount = item['playcount']
+                            albumplaycount = albumplaycount + playcount
+                        if playcount != 0:
+                            # don't add unplayed items
+                            self.albumsids.update({albumid: albumplaycount})
         self.albumsids = sorted(self.albumsids.items(), key=itemgetter(1))
         self.albumsids.reverse()
         log("album list: %s items" % len(self.albumsids))
@@ -238,21 +241,22 @@ class Main:
             json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "AudioLibrary.GetAlbumDetails", "params": {"properties": ["title", "description", "albumlabel", "artist", "genre", "year", "thumbnail", "fanart", "rating"], "albumid":%s }, "id": 1}' % albumid[0])
             json_query = unicode(json_query, 'utf-8', errors='ignore')
             json_response = simplejson.loads(json_query)
-            if json_response['result'].has_key('albumdetails'):
-                item = json_response['result']['albumdetails']
-                description = item['description']
-                album = item['title']
-                albumlabel = item['albumlabel']
-                artist = item['artist']
-                genre = item['genre']
-                year = str(item['year'])
-                thumbnail = item['thumbnail']
-                fanart = item['fanart']
-                rating = str(item['rating'])
-                if rating == '48':
-                    rating = ''
-                path = 'XBMC.RunScript(' + __addonid__ + ',albumid=' + str(albumid[0]) + ')'
-                self.albums.append((album, artist, genre, year, albumlabel, description, rating, thumbnail, fanart, path))
+            if json_response.has_key('result'):
+                if json_response['result'].has_key('albumdetails'):
+                    item = json_response['result']['albumdetails']
+                    description = item['description']
+                    album = item['title']
+                    albumlabel = item['albumlabel']
+                    artist = item['artist']
+                    genre = item['genre']
+                    year = str(item['year'])
+                    thumbnail = item['thumbnail']
+                    fanart = item['fanart']
+                    rating = str(item['rating'])
+                    if rating == '48':
+                        rating = ''
+                    path = 'XBMC.RunScript(' + __addonid__ + ',albumid=' + str(albumid[0]) + ')'
+                    self.albums.append((album, artist, genre, year, albumlabel, description, rating, thumbnail, fanart, path))
             if count == int(self.LIMIT):
                 # stop here if our list contains more items
                 break
@@ -265,18 +269,19 @@ class Main:
         playlist = xbmc.PlayList(0)
         # clear the playlist
         playlist.clear()
-        if json_response['result'].has_key('songs'):
-            for item in json_response['result']['songs']:
-                song = item['file']
-                fanart = item['fanart']
-                # create playlist item
-                listitem = xbmcgui.ListItem()
-                # add fanart image to the playlist item
-                listitem.setProperty( "fanart_image", fanart )
-                # add item to the playlist
-                playlist.add( url=song, listitem=listitem )
-            # play the playlist
-            xbmc.Player().play( playlist )
+        if json_response.has_key('result'):
+            if json_response['result'].has_key('songs'):
+                for item in json_response['result']['songs']:
+                    song = item['file']
+                    fanart = item['fanart']
+                    # create playlist item
+                    listitem = xbmcgui.ListItem()
+                    # add fanart image to the playlist item
+                    listitem.setProperty( "fanart_image", fanart )
+                    # add item to the playlist
+                    playlist.add( url=song, listitem=listitem )
+                # play the playlist
+                xbmc.Player().play( playlist )
 
     def _daemon( self ):
         # keep running until xbmc exits or another instance is started
