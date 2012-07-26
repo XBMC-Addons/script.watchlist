@@ -147,8 +147,12 @@ class Main:
         self.episodes = []
         for tvshow in self.tvshows:
             lastplayed = ""
-            for item in tvshow[5]:
-                playcount = item['playcount']
+            episode_sorter = lambda item: (int(item['season']), int(item['episode']))
+            for key, group in itertools.groupby(sorted(tvshow[5], key=episode_sorter), episode_sorter):
+                playcount = 0
+                for item in sorted(group, key=lambda x: (x['lastplayed'], x['episodeid'])):
+                    # sort first by lastplayed, so we're certain to always get the latest played item upon final iteration of the loop. Then sort by episodeid, mainly for the case where lastplayed is empty for all items, and we want the latest episodeid to be the one chosen (higher episodeid equals being added later to xbmc)
+                    playcount += int(item['playcount'])
                 if playcount != 0:
                     # this episode has been watched, record play date (we need it for sorting the final list) and continue to next episode
                     lastplayed = item['lastplayed']
