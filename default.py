@@ -118,17 +118,17 @@ class Main:
             json_response = json_response['result']['episodes']
             # our list is sorted by episode number, secondary we sort by tvshow title (itertools.groupy needs contiguous items) and split it into seperate lists for each tvshow
             episodes = [list(group) for key,group in itertools.groupby(sorted(json_response, key=itemgetter('showtitle')), key=itemgetter('showtitle'))]
-            # fetch all tvshows, sorted by title 
-            json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "id": 1}')
-            json_query = unicode(json_query, 'utf-8', errors='ignore')
-            json_response = simplejson.loads(json_query)
-            if json_response.has_key('result') and json_response['result'].has_key('tvshows'):
-                for count, tvshow in enumerate(json_response['result']['tvshows']):
-                    item = [tvshow['tvshowid'], tvshow['thumbnail'], tvshow['studio'], tvshow['title'], tvshow['fanart'], []]
-                    for episodelist in episodes:
-                        if episodelist[0]['showtitle'] == item[3]:
-                            item[5] = episodelist
-                            break
+        # fetch all tvshows, sorted by title 
+        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "id": 1}')
+        json_query = unicode(json_query, 'utf-8', errors='ignore')
+        json_response = simplejson.loads(json_query)
+        if json_response.has_key('result') and json_response['result'].has_key('tvshows'):
+            for count, tvshow in enumerate(json_response['result']['tvshows']):
+                item = [tvshow['tvshowid'], tvshow['thumbnail'], tvshow['studio'], tvshow['title'], tvshow['fanart'], []]
+                for episodelist in episodes:
+                    if episodelist[0]['showtitle'] == item[3]:
+                        item[5] = episodelist
+                        break
                     self.tvshows.append(item)
         log("tv show list: %s items" % len(self.tvshows))
 
@@ -311,8 +311,10 @@ class Main:
             count += 1
             self.WINDOW.setProperty( "WatchList_Movie.%d.Label" % ( count ), movie[1] )
             self.WINDOW.setProperty( "WatchList_Movie.%d.Year" % ( count ), movie[2] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Genre" % ( count ), movie[3] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Studio" % ( count ), movie[4] )
+            # This has been changed to an dict. Do we want to display all of them?
+            self.WINDOW.setProperty( "WatchList_Movie.%d.Genre" % ( count ), movie[3][0] )
+            # This has been changed to an dict. Do we want to display all of them?
+            self.WINDOW.setProperty( "WatchList_Movie.%d.Studio" % ( count ), movie[4][0] )
             self.WINDOW.setProperty( "WatchList_Movie.%d.Plot" % ( count ), movie[5] )
             self.WINDOW.setProperty( "WatchList_Movie.%d.PlotOutline" % ( count ), movie[6] )
             self.WINDOW.setProperty( "WatchList_Movie.%d.Tagline" % ( count ), movie[7] )
@@ -337,7 +339,8 @@ class Main:
             self.WINDOW.setProperty( "WatchList_Episode.%d.Thumb" % ( count ), episode[7] )
             self.WINDOW.setProperty( "WatchList_Episode.%d.Fanart" % ( count ), episode[8] )
             self.WINDOW.setProperty( "WatchList_Episode.%d.EpisodeNo" % ( count ), episode[9] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Studio" % ( count ), episode[10] )
+            # This has been changed to an dict. Do we want to display all of them?
+            self.WINDOW.setProperty( "WatchList_Episode.%d.Studio" % ( count ), episode[10][0] )
             self.WINDOW.setProperty( "WatchList_Episode.%d.TvshowThumb" % ( count ), episode[11] )
             self.WINDOW.setProperty( "WatchList_Episode.%d.SeasonThumb" % ( count ), episode[12] )
             self.WINDOW.setProperty( "WatchList_Episode.%d.IsResumable" % ( count ), episode[13] )
@@ -350,8 +353,10 @@ class Main:
         for count, album in enumerate( self.albums ):
             count += 1
             self.WINDOW.setProperty( "WatchList_Album.%d.Label" % ( count ), album[0] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), album[1] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Genre" % ( count ), album[2] )
+            # This has been changed to an dict. Do we want to display all of them?
+            self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), album[1][0] )
+            # This has been changed to an dict. Do we want to display all of them?
+            self.WINDOW.setProperty( "WatchList_Album.%d.Genre" % ( count ), album[2][0] )
             self.WINDOW.setProperty( "WatchList_Album.%d.Year" % ( count ), album[3] )
             self.WINDOW.setProperty( "WatchList_Album.%d.Album_Label" % ( count ), album[4] )
             self.WINDOW.setProperty( "WatchList_Album.%d.Album_Description" % ( count ), album[5] )

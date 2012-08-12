@@ -1,3 +1,7 @@
+v12.0.0
+- version bump for pre-frodo
+- fixed changes in JSON-RPC
+
 v0.1.17
 - fix error on empty JSON-RPC result
 
