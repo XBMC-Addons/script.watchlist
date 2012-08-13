@@ -1,4 +1,4 @@
-v12.0.0
+v12.0.1
 - version bump for pre-frodo
 - fixed changes in JSON-RPC
 

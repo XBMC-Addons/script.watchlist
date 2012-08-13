@@ -129,7 +129,7 @@ class Main:
                     if episodelist[0]['showtitle'] == item[3]:
                         item[5] = episodelist
                         break
-                    self.tvshows.append(item)
+                self.tvshows.append(item)
         log("tv show list: %s items" % len(self.tvshows))
 
     def _fetch_seasonthumb( self, tvshowid, seasonnumber ):
