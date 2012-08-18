@@ -312,7 +312,7 @@ class Main:
             self.WINDOW.setProperty( "WatchList_Movie.%d.Label" % ( count ), movie[1] )
             self.WINDOW.setProperty( "WatchList_Movie.%d.Year" % ( count ), movie[2] )
             # This has been changed to an dict. Do we want to display all of them?
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Genre" % ( count ), movie[3][0] )
+            self.WINDOW.setProperty( "WatchList_Movie.%d.Genre" % ( count ), self._array_tostring(movie[3]) )
             # This has been changed to an dict. Do we want to display all of them?
             self.WINDOW.setProperty( "WatchList_Movie.%d.Studio" % ( count ), movie[4][0] )
             self.WINDOW.setProperty( "WatchList_Movie.%d.Plot" % ( count ), movie[5] )
@@ -354,7 +354,7 @@ class Main:
             count += 1
             self.WINDOW.setProperty( "WatchList_Album.%d.Label" % ( count ), album[0] )
             # This has been changed to an dict. Do we want to display all of them?
-            self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), album[1][0] )
+            self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), self._array_tostring(album[1]) )
             # This has been changed to an dict. Do we want to display all of them?
             self.WINDOW.setProperty( "WatchList_Album.%d.Genre" % ( count ), album[2][0] )
             self.WINDOW.setProperty( "WatchList_Album.%d.Year" % ( count ), album[3] )
@@ -456,6 +456,12 @@ class Main:
             self._fetch_albums()
             self._clear_album_properties()
             self._set_album_properties()
+
+    def _array_tostring(self, data):
+        string = ''
+        for item in data:
+            string += '%s / ' %item
+        return string.rstrip(' / ')
 
 class MyPlayer(xbmc.Player):
     def __init__( self, *args, **kwargs ):
