@@ -90,7 +90,7 @@ class Main:
 
     def _fetch_tvshows( self ):
         # fetch all episodes in one query
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"order": "descending", "method": "lastplayed"}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": 5}}, "id": 1}')
+        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"order": "descending", "method": "lastplayed"}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}'%self.LIMIT)
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('tvshows'):
@@ -283,7 +283,11 @@ class MyPlayer(xbmc.Player):
         self.initValues()
 
     def onPlayBackStarted( self ):
-        pass
+        xbmc.sleep(5000)
+        if type == 'movie':
+            self._fetch_movies()
+        elif type == 'episode':
+            self._fetch_tvshows()
         
     def onPlayBackEnded( self ):
         self.stopTimer()
@@ -291,7 +295,7 @@ class MyPlayer(xbmc.Player):
             self.action( 'album', self.item, True )
         if self.type == 'movie':
             self.action( 'movie', self.item, True )
-        if self.type == 'episode' and self.episodes:
+        if self.type == 'episode':
             self.action( 'episode', self.item, True )
         self.initValues()
 
@@ -301,7 +305,7 @@ class MyPlayer(xbmc.Player):
             self.action( 'album', self.item, True )
         if self.type == 'movie':
             self.action( 'movie', self.item, ( self.time < 3*60 or self.totalTime * 0.9 <= self.time ) )
-        if self.type == 'episode' and self.episodes:
+        if self.type == 'episode':
             self.action( 'episode', self.item, ( self.totalTime * 0.9 <= self.time ) )
         self.initValues()
 
