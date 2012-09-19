@@ -329,6 +329,7 @@ class Main:
                 break
 
     def _update( self, type, item, ended ):
+        xbmc.sleep(100)
         if type == 'movie':
             self._fetch_movies()
 
