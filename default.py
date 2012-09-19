@@ -56,18 +56,15 @@ class Main:
             self._fetch_movies()
         if self.EPISODES == 'true':
             self._fetch_tvshows()
-            self._fetch_episodes()
         if self.ALBUMS == 'true':
             self._fetch_songs()
             self._fetch_albums()
-        if self.EPISODES == 'true':
-            self._clear_episode_properties()
-            self._set_episode_properties()
         if self.ALBUMS == 'true':
             self._clear_album_properties()
             self._set_album_properties()
 
     def _fetch_movies( self ):
+        print 'start updating'
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "resume", "genre", "studio", "tagline", "runtime", "fanart", "thumbnail", "file", "plot", "plotoutline", "year", "lastplayed", "rating"], "sort": { "order": "descending", "method": "lastplayed" }, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}' %self.LIMIT)
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
@@ -90,31 +87,51 @@ class Main:
                 self.WINDOW.setProperty( "WatchList_Movie.%d.Path" % ( count ), item['file'] )
                 self.WINDOW.setProperty( "WatchList_Movie.%d.Rating" % ( count ), str(round(float(item['rating']),1)) )
         log("movie list: %s items" % len(json_response))
+        print 'finished updating'
 
     def _fetch_tvshows( self ):
-        self.tvshows = []
         # fetch all episodes in one query
-        #json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}' %self.LIMIT)
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": {"properties": ["title", "playcount", "plot", "season", "episode", "showtitle", "thumbnail", "file", "lastplayed", "rating"], "sort": {"method": "episode"} }, "id": 1}' )
+        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"order": "descending", "method": "lastplayed"}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": 5}}, "id": 1}')
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
-        if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('episodes'):
-            json_response = json_response['result']['episodes']
-            # our list is sorted by episode number, secondary we sort by tvshow title (itertools.groupy needs contiguous items) and split it into seperate lists for each tvshow
-            episodes = [list(group) for key,group in itertools.groupby(sorted(json_response, key=itemgetter('showtitle')), key=itemgetter('showtitle'))]
-        # fetch all tvshows, sorted by title 
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "id": 1}')
-        json_query = unicode(json_query, 'utf-8', errors='ignore')
-        json_response = simplejson.loads(json_query)
-        if json_response.has_key('result') and json_response['result'].has_key('tvshows'):
-            for count, tvshow in enumerate(json_response['result']['tvshows']):
-                item = [tvshow['tvshowid'], tvshow['thumbnail'], tvshow['studio'], tvshow['title'], tvshow['fanart'], []]
-                for episodelist in episodes:
-                    if episodelist[0]['showtitle'] == item[3]:
-                        item[5] = episodelist
-                        break
-                self.tvshows.append(item)
-        log("tv show list: %s items" % len(self.tvshows))
+        if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('tvshows'):
+            count = 0
+            total = str(len(json_response))
+            self._clear_episode_properties()
+            for item in json_response['result']['tvshows']:
+                count += 1
+                print item['title']
+                json_query2 = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": {"tvshowid": %d, "properties": ["title", "playcount", "plot", "season", "episode", "showtitle", "thumbnail", "file", "lastplayed", "rating"], "sort": {"method": "episode"}, "filter": {"field": "playcount", "operator": "is", "value": "0"}, "limits": {"end": 1}}, "id": 1}' %item['tvshowid'] )
+                json_query2 = unicode(json_query2, 'utf-8', errors='ignore')
+                json_response2 = simplejson.loads(json_query2)
+                if json_response2.has_key('result') and json_response2['result'] != None and json_response2['result'].has_key('episodes'):
+                    for item2 in json_response2['result']['episodes']:
+                        title = item2['title']
+                        episode = ("%.2d" % float(item2['episode']))
+                        path = item2['file']
+                        plot = item2['plot']
+                        season = "%.2d" % float(item2['season'])
+                        thumbnail = item2['thumbnail']
+                        showtitle = item2['showtitle']
+                        rating = str(round(float(item2['rating']),1))
+                        episodeno = "s%se%s" %(season,episode)
+                resumable = "True"
+                seasonthumb = ''
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Label" % ( count ), title )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Episode" % ( count ), episode )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Season" % ( count ), season )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Plot" % ( count ), plot )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.TVShowTitle" % ( count ), showtitle )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Path" % ( count ), path )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Thumb" % ( count ), thumbnail )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Fanart" % ( count ), item['fanart'] )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.EpisodeNo" % ( count ), episodeno )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Studio" % ( count ), item['studio'][0] )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.TvshowThumb" % ( count ), item['thumbnail'] )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.SeasonThumb" % ( count ), seasonthumb )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.IsResumable" % ( count ), resumable )
+                self.WINDOW.setProperty( "WatchList_Episode.%d.Rating" % ( count ), rating )
+        log("tv show list: %s items" % len(json_response))
 
     def _fetch_seasonthumb( self, tvshowid, seasonnumber ):
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetSeasons", "params": {"properties": ["season", "thumbnail"], "tvshowid":%s }, "id": 1}' % tvshowid)
@@ -126,70 +143,6 @@ class Main:
                 if season == seasonnumber:
                     thumbnail = item['thumbnail']
                     return thumbnail
-
-    def _fetch_episodes( self ):
-        self.episodes = []
-        for tvshow in self.tvshows:
-            lastplayed = ""
-            episode_sorter = lambda item: (int(item['season']), int(item['episode']))
-            for key, group in itertools.groupby(sorted(tvshow[5], key=episode_sorter), episode_sorter):
-                playcount = 0
-                for item in sorted(group, key=lambda x: (x['lastplayed'], x['episodeid'])):
-                    # sort first by lastplayed, so we're certain to always get the latest played item upon final iteration of the loop. Then sort by episodeid, mainly for the case where lastplayed is empty for all items, and we want the latest episodeid to be the one chosen (higher episodeid equals being added later to xbmc)
-                    playcount += int(item['playcount'])
-                if playcount != 0:
-                    # this episode has been watched, record play date (we need it for sorting the final list) and continue to next episode
-                    lastplayed = item['lastplayed']
-                    if lastplayed == '':
-                        # catch exceptions where the episode has been played, but playdate wasn't stored in the db
-                        lastplayed = '0'
-                    else:
-                        datetime = strptime(lastplayed, "%Y-%m-%d %H:%M:%S")
-                        lastplayed = str(mktime(datetime))
-                    continue
-                else:
-                    # this is the first unwatched episode, check if the episode is partially watched
-                    playdate = item['lastplayed']
-                    if (lastplayed == "") and (playdate == ""):
-                        # it's a tv show with 0 watched episodes, continue to the next tv show
-                        break
-                    else:
-                        # this is the episode we need
-                        title = item['title']
-                        episode = "%.2d" % float(item['episode'])
-                        path = item['file']
-                        plot = item['plot']
-                        season = "%.2d" % float(item['season'])
-                        thumbnail = item['thumbnail']
-                        showtitle = item['showtitle']
-                        rating = str(round(float(item['rating']),1))
-                        episodeno = "s%se%s" % ( season,  episode, )
-                        if not playdate == '':
-                            # if the episode is partially watched, use it's playdate for sorting
-                            datetime = strptime(playdate, "%Y-%m-%d %H:%M:%S")
-                            lastplayed = str(mktime(datetime))
-                            resumable = "True"
-                        else:
-                            resumable = "False"
-                        tvshowid = tvshow[0]
-                        showthumb = tvshow[1]
-                        studio = tvshow[2]
-                        fanart = tvshow[4]
-                        seasonthumb = ''
-                        self.episodes.append([lastplayed, title, episode, season, plot, showtitle, path, thumbnail, fanart, episodeno, studio, showthumb, seasonthumb, resumable, rating, playcount, tvshowid])
-                        # we have found our episode, collected all data, so continue to next tv show
-                        break
-        self.episodes.sort(reverse=True)
-        # only fetch seasonthumbs for items that will actually show up in the skin
-        for count, episode in enumerate( self.episodes ):
-            count += 1
-            tvshowid = episode[16]
-            season = episode[3]
-            episode[12] = self._fetch_seasonthumb(tvshowid, season)
-            if count == int(self.LIMIT):
-                # stop here if our list contains more items
-                break
-        log("episode list: %s items" % len(self.episodes))
 
     def _fetch_songs( self ):
         self.albumsids = {}
@@ -269,7 +222,7 @@ class Main:
     def _daemon( self ):
         # keep running until xbmc exits or another instance is started
         while (not xbmc.abortRequested) and self.WINDOW.getProperty('WatchList_Running') == 'True':
-            xbmc.sleep(1000)
+            xbmc.sleep(500)
         if xbmc.abortRequested:
             log('script stopped: xbmc quit')
         else:
@@ -289,27 +242,6 @@ class Main:
         for count in range( int(self.LIMIT) ):
             count += 1
             self.WINDOW.clearProperty( "WatchList_Album.%d.Label" % ( count ) )
-
-    def _set_episode_properties( self ):
-        for count, episode in enumerate( self.episodes ):
-            count += 1
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Label" % ( count ), episode[1] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Episode" % ( count ), episode[2] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Season" % ( count ), episode[3] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Plot" % ( count ), episode[4] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.TVShowTitle" % ( count ), episode[5] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Path" % ( count ), episode[6] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Thumb" % ( count ), episode[7] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Fanart" % ( count ), episode[8] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.EpisodeNo" % ( count ), episode[9] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Studio" % ( count ), episode[10][0] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.TvshowThumb" % ( count ), episode[11] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.SeasonThumb" % ( count ), episode[12] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.IsResumable" % ( count ), episode[13] )
-            self.WINDOW.setProperty( "WatchList_Episode.%d.Rating" % ( count ), episode[14] )
-            if count == int(self.LIMIT):
-                # stop here if our list contains more items
-                break
 
     def _set_album_properties( self ):
         for count, album in enumerate( self.albums ):
@@ -332,65 +264,8 @@ class Main:
         xbmc.sleep(100)
         if type == 'movie':
             self._fetch_movies()
-
         elif type == 'episode':
-            # Only update if it was a new, unwatched episode
-            if item[15] == 0:
-                for tvshow in self.tvshows:
-                    # If tv show names match, set missing values
-                    if tvshow[3] == item[5]:
-                        fanart = tvshow[4]
-                        item[8] = fanart
-                        item[10] = tvshow[2]
-                        item[11] = tvshow[1]
-                        tvshowid = tvshow[0]
-                        item[16] = tvshowid
-                        # Delete episode from watch list episodes
-                        new = True
-                        for count, episode in enumerate( self.episodes ):
-                            if episode[5] == item[5]:
-                                # record our seasonthumb here since we need it later on
-                                seasonthumb = episode[12]
-                                item[12] = seasonthumb
-                                item[7] = episode[7]
-                                del self.episodes[count]
-                                new = False
-                                break
-                        # If the show is marked as watched, check for a new episode to add
-                        # else add the episode at the beginning of the list
-                        if ended:
-                            update = False
-                            insert = False
-                            for ep in tvshow[5]:
-                                seasonnumber = "%.2d" % float(ep['season'])
-                                episodenumber = "%.2d" % float(ep['episode'])
-                                if ( episodenumber != item[2] or seasonnumber != item[3] ) and ep['playcount'] == 0:
-                                    if seasonnumber != item[3]:
-                                        # our new episode is from the next season, so fetch seasonthumb
-                                        seasonthumb = self._fetch_seasonthumb(tvshowid, seasonnumber)
-                                    self.episodes.insert( 0, [ep['lastplayed'], ep['title'], episodenumber, seasonnumber, ep['plot'], ep['showtitle'], ep['file'], ep['thumbnail'], fanart, "s%se%s" % ( seasonnumber,  episodenumber, ), tvshow[2], tvshow[1], seasonthumb, "True", str(round(float(ep['rating']),1)), ep['playcount']] )
-                                    insert = True
-                                    if update:
-                                        break
-                                elif episodenumber == item[2] and seasonnumber == item[3]:
-                                    ep['playcount'] = 1
-                                    update = True
-                                    if insert:
-                                        break
-                        else:
-                            # If the episode wasn't in the watch list before, set season and episode thumb
-                            if new:
-                                for ep in tvshow[5]:
-                                    seasonnumber = "%.2d" % float(ep['season'])
-                                    episodenumber = "%.2d" % float(ep['episode'])
-                                    if episodenumber == item[2] and seasonnumber == item[3]:
-                                        item[7] = ep['thumbnail']
-                                        item[12] = self._fetch_seasonthumb(tvshowid, seasonnumber)
-                                        break
-                            self.episodes.insert( 0, item )
-                        break
-                self._clear_episode_properties()
-                self._set_episode_properties()
+            self._fetch_tvshows()
         elif type == 'album':
             xbmc.sleep(1000)
             self._fetch_songs()
@@ -520,7 +395,7 @@ class MyPlayer(xbmc.Player):
             except:
                 setTime = False
             if (runtime <= 2):
-                xbmc.sleep(5000)
+                xbmc.sleep(3000)
             else:
                 xbmc.sleep(1000)
             if setTime:
