@@ -44,7 +44,7 @@ class Main:
         self.MOVIES = params.get( "movies", "" )
         self.EPISODES = params.get( "episodes", "" )
         self.ALBUMS = params.get( "albums", "" )
-        self.LIMIT = params.get( "limit", "25" )
+        self.LIMIT = int(params.get("limit", "25"))
         self.ALBUMID = params.get( "albumid", "" )
 
     def _init_vars( self ):
@@ -60,9 +60,6 @@ class Main:
         if self.ALBUMS == 'true':
             self._fetch_songs()
             self._fetch_albums()
-        if self.MOVIES == 'true':
-            self._clear_movie_properties()
-            self._set_movie_properties()
         if self.EPISODES == 'true':
             self._clear_episode_properties()
             self._set_episode_properties()
@@ -71,46 +68,33 @@ class Main:
             self._set_album_properties()
 
     def _fetch_movies( self ):
-        self.movies = []
-        self.movieList = []
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "resume", "genre", "studio", "tagline", "runtime", "fanart", "thumbnail", "file", "plot", "plotoutline", "year", "lastplayed", "rating"]}, "id": 1}')
+        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "resume", "genre", "studio", "tagline", "runtime", "fanart", "thumbnail", "file", "plot", "plotoutline", "year", "lastplayed", "rating"], "sort": { "order": "descending", "method": "lastplayed" }, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}' %self.LIMIT)
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('movies'):
+            count = 0
+            total = str(len(json_response))
+            self._clear_movie_properties()
             for item in json_response['result']['movies']:
-                self.movieList.append(item)
-                if item['resume']['position'] > 0:
-                    # this item has a resume point
-                    title = item['title']
-                    year = str(item['year'])
-                    genre = item['genre']
-                    studio = item['studio']
-                    plot = item['plot']
-                    plotoutline = item['plotoutline']
-                    tagline = item['tagline']
-                    runtime = item['runtime']
-                    fanart = item['fanart']
-                    thumbnail = item['thumbnail']
-                    path = item['file']
-                    rating = str(round(float(item['rating']),1))
-                    if item.has_key('resume'):
-                        # catch exceptions where the lastplayed isn't returned by json-rpc (bug?)
-                        lastplayed = item['lastplayed']
-                    else:
-                        lastplayed = ''
-                    if lastplayed == '':
-                        # catch exceptions where the item has been partially played, but playdate wasn't stored in the db
-                        lastplayed = '0'
-                    else:
-                        datetime = strptime(lastplayed, "%Y-%m-%d %H:%M:%S")
-                        lastplayed = str(mktime(datetime))
-                    self.movies.append([lastplayed, title, year, genre, studio, plot, plotoutline, tagline, runtime, fanart, thumbnail, path, rating])
-        self.movies.sort(reverse=True)
-        log("movie list: %s items" % len(self.movies))
+                count += 1
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Label" % ( count ), item['title'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Year" % ( count ), str(item['year']) )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Genre" % ( count ), " / ".join(item['genre']) )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Studio" % ( count ), item['studio'][0] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Plot" % ( count ), item['plot'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.PlotOutline" % ( count ), item['plotoutline'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Tagline" % ( count ), item['tagline'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Runtime" % ( count ), item['runtime'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Fanart" % ( count ), item['fanart'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Thumb" % ( count ), item['thumbnail'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Path" % ( count ), item['file'] )
+                self.WINDOW.setProperty( "WatchList_Movie.%d.Rating" % ( count ), str(round(float(item['rating']),1)) )
+        log("movie list: %s items" % len(json_response))
 
     def _fetch_tvshows( self ):
         self.tvshows = []
         # fetch all episodes in one query
+        #json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"method": "title"}}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}' %self.LIMIT)
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": {"properties": ["title", "playcount", "plot", "season", "episode", "showtitle", "thumbnail", "file", "lastplayed", "rating"], "sort": {"method": "episode"} }, "id": 1}' )
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
@@ -306,25 +290,6 @@ class Main:
             count += 1
             self.WINDOW.clearProperty( "WatchList_Album.%d.Label" % ( count ) )
 
-    def _set_movie_properties( self ):
-        for count, movie in enumerate( self.movies ):
-            count += 1
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Label" % ( count ), movie[1] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Year" % ( count ), movie[2] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Genre" % ( count ), " / ".join(movie[3]) )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Studio" % ( count ), movie[4][0] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Plot" % ( count ), movie[5] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.PlotOutline" % ( count ), movie[6] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Tagline" % ( count ), movie[7] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Runtime" % ( count ), movie[8] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Fanart" % ( count ), movie[9] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Thumb" % ( count ), movie[10] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Path" % ( count ), movie[11] )
-            self.WINDOW.setProperty( "WatchList_Movie.%d.Rating" % ( count ), movie[12] )
-            if count == int(self.LIMIT):
-                # stop here if our list contains more items
-                break
-
     def _set_episode_properties( self ):
         for count, episode in enumerate( self.episodes ):
             count += 1
@@ -365,28 +330,8 @@ class Main:
 
     def _update( self, type, item, ended ):
         if type == 'movie':
-            found = False
-            # Delete movie from watch list movies
-            for count, movie in enumerate( self.movies ):
-                if movie[11] == item[11]:
-                    item[9] = movie[9]
-                    item[10] = movie[10]
-                    del self.movies[count]
-                    found = True
-                    break
-            # If movie has a resume point, add it at the beginning
-            if not ended:
-                if found:
-                    self.movies.insert( 0, item )
-                else:
-                    for m in self.movieList:
-                        if m['file'] == item[11]:
-                            item[9] = m['fanart']
-                            item[10] = m['thumbnail']
-                            self.movies.insert( 0, item )
-                            break
-            self._clear_movie_properties()
-            self._set_movie_properties()
+            self._fetch_movies()
+
         elif type == 'episode':
             # Only update if it was a new, unwatched episode
             if item[15] == 0:
@@ -472,7 +417,7 @@ class MyPlayer(xbmc.Player):
             self.stopTimer()
             # Update if an item was played (player is playing a playlist)
             if len(self.item) > 0:
-                if self.type == 'movie' and self.movies:
+                if self.type == 'movie':
                     self.action( 'movie', self.item, ( self.time < 3*60 or self.totalTime * 0.9 <= self.time ) )
                 if self.type == 'episode' and self.episodes:
                     self.action( 'episode', self.item, ( self.totalTime * 0.9 <= self.time ) )
@@ -503,7 +448,7 @@ class MyPlayer(xbmc.Player):
         self.stopTimer()
         if self.type == 'album' and self.albums:
             self.action( 'album', self.item, True )
-        if self.type == 'movie' and self.movies:
+        if self.type == 'movie':
             self.action( 'movie', self.item, True )
         if self.type == 'episode' and self.episodes:
             self.action( 'episode', self.item, True )
@@ -513,7 +458,7 @@ class MyPlayer(xbmc.Player):
         self.stopTimer()
         if self.type == 'album' and self.albums:
             self.action( 'album', self.item, True )
-        if self.type == 'movie' and self.movies:
+        if self.type == 'movie':
             self.action( 'movie', self.item, ( self.time < 3*60 or self.totalTime * 0.9 <= self.time ) )
         if self.type == 'episode' and self.episodes:
             self.action( 'episode', self.item, ( self.totalTime * 0.9 <= self.time ) )
