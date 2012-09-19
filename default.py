@@ -70,7 +70,6 @@ class Main:
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('movies'):
             count = 0
-            total = str(len(json_response))
             self._clear_movie_properties()
             for item in json_response['result']['movies']:
                 count += 1
@@ -96,7 +95,6 @@ class Main:
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('tvshows'):
             count = 0
-            total = str(len(json_response))
             self._clear_episode_properties()
             for item in json_response['result']['tvshows']:
                 count += 1
@@ -285,41 +283,8 @@ class MyPlayer(xbmc.Player):
         self.initValues()
 
     def onPlayBackStarted( self ):
-        # Set values based on the file content
-        if ( self.isPlayingAudio() ):
-            self.setValues( 'album' )   
-        else:
-            # Stop timer thread on start
-            self.stopTimer()
-            # Update if an item was played (player is playing a playlist)
-            if len(self.item) > 0:
-                if self.type == 'movie':
-                    self.action( 'movie', self.item, ( self.time < 3*60 or self.totalTime * 0.9 <= self.time ) )
-                if self.type == 'episode' and self.episodes:
-                    self.action( 'episode', self.item, ( self.totalTime * 0.9 <= self.time ) )
-                self.initValues()  
-            # Start timer thread
-            self.timer = Thread(target=self.startTimer)
-            self.timer.start()
-            if xbmc.getCondVisibility( 'VideoPlayer.Content(movies)' ):
-                filename = ''
-                isMovie = True
-                try:
-                    filename = self.getPlayingFile()
-                except:
-                    pass
-                if filename != '':
-                    for string in self.substrings:
-                        if string in filename:
-                            isMovie = False
-                            break
-                if isMovie:
-                    self.setValues( 'movie' )
-            elif xbmc.getCondVisibility( 'VideoPlayer.Content(episodes)' ):
-                # Check for tv show title and season to make sure it's really an episode
-                if xbmc.getInfoLabel('VideoPlayer.Season') != "" and xbmc.getInfoLabel('VideoPlayer.TVShowTitle') != "":
-                    self.setValues( 'episode' )
-
+        pass
+        
     def onPlayBackEnded( self ):
         self.stopTimer()
         if self.type == 'album' and self.albums:
@@ -339,44 +304,6 @@ class MyPlayer(xbmc.Player):
         if self.type == 'episode' and self.episodes:
             self.action( 'episode', self.item, ( self.totalTime * 0.9 <= self.time ) )
         self.initValues()
-
-    def setValues( self, type ):
-        self.type = type
-        self.totalTime = 0
-        try:
-            self.totalTime = self.getTotalTime()
-        except:
-            pass
-        if type == 'movie':
-            title = xbmc.getInfoLabel('VideoPlayer.Title')
-            year = xbmc.getInfoLabel('VideoPlayer.Year')
-            genre = xbmc.getInfoLabel('VideoPlayer.Genre')
-            studio = xbmc.getInfoLabel('VideoPlayer.Studio')
-            plot = xbmc.getInfoLabel('VideoPlayer.Plot')
-            plotoutline = xbmc.getInfoLabel('VideoPlayer.PlotOutline')
-            tagline = xbmc.getInfoLabel('VideoPlayer.TagLine')
-            runtime = xbmc.getInfoLabel('VideoPlayer.Duration')
-            path = xbmc.getInfoLabel('Player.Filenameandpath')
-            rating = str(xbmc.getInfoLabel('VideoPlayer.Rating'))
-            self.item = ["", title, year, genre, studio, plot, plotoutline, tagline, runtime, "", "", path, rating]
-        elif type == 'episode':
-            title = xbmc.getInfoLabel('VideoPlayer.Title')
-            episode = "%.2d" % float(xbmc.getInfoLabel('VideoPlayer.Episode'))
-            path = xbmc.getInfoLabel('Player.Filenameandpath')
-            plot = xbmc.getInfoLabel('VideoPlayer.Plot')
-            season = "%.2d" % float(xbmc.getInfoLabel('VideoPlayer.Season'))
-            showtitle = xbmc.getInfoLabel('VideoPlayer.TVShowTitle')
-            rating = str(xbmc.getInfoLabel('VideoPlayer.Rating'))
-            episodeno = "s%se%s" % ( season,  episode, )
-            studio = xbmc.getInfoLabel('VideoPlayer.Studio')
-            playcount = xbmc.getInfoLabel('VideoPlayer.PlayCount')
-            if playcount != "":
-                playcount = int(playcount)
-            else:
-                playcount = 0
-            self.item = ["", title, episode, season, plot, showtitle, path, "", "", episodeno, "", "", "", "True", rating, playcount, ""]
-        elif type == 'album':
-            pass
 
     def initValues( self ):
         self.item = []
