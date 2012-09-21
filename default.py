@@ -1,14 +1,12 @@
-from time import strptime, mktime
-from operator import itemgetter
-import itertools
-import sys, itertools
+import sys
+import xbmc
+import xbmcgui
+import xbmcaddon
 if sys.version_info < (2, 7):
     import simplejson
 else:
     import json as simplejson
-import xbmc, xbmcgui, xbmcaddon
 # http://mail.python.org/pipermail/python-list/2009-June/596197.html
-import _strptime
 from threading import Thread
 
 __addon__        = xbmcaddon.Addon()
@@ -187,7 +185,7 @@ class Main:
             self.WINDOW.clearProperty( "WatchList_Album.%d.Label" % ( count ) )
 
 
-    def _update( self, type, item, ended ):
+    def _update( self, type):
         xbmc.sleep(100)
         if type == 'movie':
             self._fetch_movies()
@@ -228,7 +226,7 @@ class MyPlayer(xbmc.Player):
 
     def onPlayBackStopped( self ):
         self.stopTimer()
-        if self.type == 'album' and self.albums:
+        if self.type == 'album':
             self.action( 'album', self.item, True )
         if self.type == 'movie':
             self.action( 'movie', self.item, ( self.time < 3*60 or self.totalTime * 0.9 <= self.time ) )
