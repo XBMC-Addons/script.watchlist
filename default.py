@@ -26,7 +26,7 @@ class Main:
         self._init_vars()
         # check how we were executed
         if self.ALBUMID:
-            self._play_album( self.ALBUMID )
+            xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method": "Player.Open", "params": { "item": { "albumid": %d } }, "id": 1 }' % int(self.ALBUMID))
         else:
             # clear our property, if another instance is already running it should stop now
             self.WINDOW.clearProperty('WatchList_Running')
@@ -57,11 +57,7 @@ class Main:
         if self.EPISODES == 'true':
             self._fetch_tvshows()
         if self.ALBUMS == 'true':
-            self._fetch_songs()
             self._fetch_albums()
-        if self.ALBUMS == 'true':
-            self._clear_album_properties()
-            self._set_album_properties()
 
     def _fetch_movies( self ):
         print 'start updating'
@@ -90,7 +86,7 @@ class Main:
 
     def _fetch_tvshows( self ):
         # fetch all episodes in one query
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"order": "descending", "method": "lastplayed"}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}'%self.LIMIT)
+        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetTVShows", "params": {"properties": ["title", "studio", "thumbnail", "fanart"], "sort": {"order": "descending", "method": "lastplayed"}, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": 5}}, "id": 1}')
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('tvshows'):
@@ -142,80 +138,29 @@ class Main:
                     thumbnail = item['thumbnail']
                     return thumbnail
 
-    def _fetch_songs( self ):
-        self.albumsids = {}
-        previousid = ''
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "AudioLibrary.GetSongs", "params": {"properties": ["playcount", "albumid"], "sort": { "method": "album" } }, "id": 1}')
-        json_query = unicode(json_query, 'utf-8', errors='ignore')
-        json_response = simplejson.loads(json_query)
-        if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('songs'):
-            for item in json_response['result']['songs']:
-                albumid = item['albumid']
-                if albumid != '':
-                    # ignore single tracks that do not belong to an album
-                    if albumid != previousid:
-                        # new album
-                        albumplaycount = 0
-                        playcount = item['playcount']
-                        albumplaycount = albumplaycount + playcount
-                        previousid = albumid
-                    else:
-                        # song from the same album
-                        playcount = item['playcount']
-                        albumplaycount = albumplaycount + playcount
-                    if playcount != 0:
-                        # don't add unplayed items
-                        self.albumsids.update({albumid: albumplaycount})
-        self.albumsids = sorted(self.albumsids.items(), key=itemgetter(1))
-        self.albumsids.reverse()
-        log("album list: %s items" % len(self.albumsids))
-
     def _fetch_albums( self ):
-        self.albums = []
-        for count, albumid in enumerate( self.albumsids ):
-            count += 1
-            json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "AudioLibrary.GetAlbumDetails", "params": {"properties": ["title", "description", "albumlabel", "artist", "genre", "year", "thumbnail", "fanart", "rating"], "albumid":%s }, "id": 1}' % albumid[0])
-            json_query = unicode(json_query, 'utf-8', errors='ignore')
-            json_response = simplejson.loads(json_query)
-            if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('albumdetails'):
-                item = json_response['result']['albumdetails']
-                description = item['description']
-                album = item['title']
-                albumlabel = item['albumlabel']
-                artist = item['artist']
-                genre = item['genre']
-                year = str(item['year'])
-                thumbnail = item['thumbnail']
-                fanart = item['fanart']
+        json_response = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "AudioLibrary.GetAlbums", "params": {"properties": ["title", "description", "albumlabel", "artist", "genre", "year", "thumbnail", "fanart", "rating", "playcount"], "sort": {"order": "descending", "method": "playcount" }, "limits": {"end": 10}}, "id": 1}')
+        json_response = unicode(json_response, 'utf-8', errors='ignore')
+        jsonobject = simplejson.loads(json_response)
+        if jsonobject['result'].has_key('albums'):
+            count = 0
+            self._clear_album_properties()
+            for item in jsonobject['result']['albums']:
+                count += 1
                 rating = str(item['rating'])
                 if rating == '48':
                     rating = ''
-                path = 'XBMC.RunScript(' + __addonid__ + ',albumid=' + str(albumid[0]) + ')'
-                self.albums.append((album, artist, genre, year, albumlabel, description, rating, thumbnail, fanart, path))
-            if count == int(self.LIMIT):
-                # stop here if our list contains more items
-                break
-
-    def _play_album( self, ID ):
-        json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "AudioLibrary.GetSongs", "params": {"properties": ["file", "fanart"], "albumid":%s }, "id": 1}' % ID)
-        json_query = unicode(json_query, 'utf-8', errors='ignore')
-        json_response = simplejson.loads(json_query)
-        # create a playlist
-        playlist = xbmc.PlayList(0)
-        # clear the playlist
-        playlist.clear()
-        if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('songs'):
-            for item in json_response['result']['songs']:
-                song = item['file']
-                fanart = item['fanart']
-                # create playlist item
-                listitem = xbmcgui.ListItem()
-                # add fanart image to the playlist item
-                listitem.setProperty( "fanart_image", fanart )
-                # add item to the playlist
-                playlist.add( url=song, listitem=listitem )
-            # play the playlist
-            xbmc.Player().play( playlist )
+                path = 'XBMC.RunScript(' + __addonid__ + ',albumid=' + str(item['albumid']) + ')'
+                self.WINDOW.setProperty( "WatchList_Album.%d.Label" % ( count ), item['title'] )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), " / ".join(item['artist']) )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Genre" % ( count ), " / ".join(item['genre']) )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Year" % ( count ), str(item['year']) )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Album_Label" % ( count ), item['albumlabel'] )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Album_Description" % ( count ), item['description'] )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Rating" % ( count ), rating )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Thumb" % ( count ), item['thumbnail'] )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Fanart" % ( count ), item['fanart'] )
+                self.WINDOW.setProperty( "WatchList_Album.%d.Path" % ( count ), path )               
 
     def _daemon( self ):
         # keep running until xbmc exits or another instance is started
@@ -241,22 +186,6 @@ class Main:
             count += 1
             self.WINDOW.clearProperty( "WatchList_Album.%d.Label" % ( count ) )
 
-    def _set_album_properties( self ):
-        for count, album in enumerate( self.albums ):
-            count += 1
-            self.WINDOW.setProperty( "WatchList_Album.%d.Label" % ( count ), album[0] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), " / ".join(album[1]) )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Genre" % ( count ), album[2][0] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Year" % ( count ), album[3] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Album_Label" % ( count ), album[4] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Album_Description" % ( count ), album[5] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Rating" % ( count ), album[6] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Thumb" % ( count ), album[7] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Fanart" % ( count ), album[8] )
-            self.WINDOW.setProperty( "WatchList_Album.%d.Path" % ( count ), album[9] )
-            if count == int(self.LIMIT):
-                # stop here if our list contains more items
-                break
 
     def _update( self, type, item, ended ):
         xbmc.sleep(100)
@@ -265,11 +194,7 @@ class Main:
         elif type == 'episode':
             self._fetch_tvshows()
         elif type == 'album':
-            xbmc.sleep(1000)
-            self._fetch_songs()
             self._fetch_albums()
-            self._clear_album_properties()
-            self._set_album_properties()
 
 class MyPlayer(xbmc.Player):
     def __init__( self, *args, **kwargs ):
@@ -288,10 +213,12 @@ class MyPlayer(xbmc.Player):
             self._fetch_movies()
         elif type == 'episode':
             self._fetch_tvshows()
-        
+        elif type == 'album':
+            self._fetch_albums()
+
     def onPlayBackEnded( self ):
         self.stopTimer()
-        if self.type == 'album' and self.albums:
+        if self.type == 'album':
             self.action( 'album', self.item, True )
         if self.type == 'movie':
             self.action( 'movie', self.item, True )
