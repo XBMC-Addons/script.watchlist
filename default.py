@@ -89,7 +89,6 @@ class Main:
             count = 0
             for item in json_response['result']['tvshows']:
                 count += 1
-                print item['title']
                 json_query2 = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": {"tvshowid": %d, "properties": ["title", "playcount", "plot", "season", "episode", "showtitle", "thumbnail", "file", "lastplayed", "rating"], "sort": {"method": "episode"}, "filter": {"field": "playcount", "operator": "is", "value": "0"}, "limits": {"end": 1}}, "id": 1}' %item['tvshowid'] )
                 json_query2 = unicode(json_query2, 'utf-8', errors='ignore')
                 json_response2 = simplejson.loads(json_query2)
@@ -206,7 +205,6 @@ class MyPlayer(xbmc.Player):
             self.type = "album"  
         else:
             if xbmc.getCondVisibility( 'VideoPlayer.Content(movies)' ):
-                print "it is a movie"
                 filename = ''
                 isMovie = True
                 try:
@@ -220,14 +218,12 @@ class MyPlayer(xbmc.Player):
                             break
                 if isMovie:
                     self.type = "movie"
-                    print "confirmed movie"
             elif xbmc.getCondVisibility( 'VideoPlayer.Content(episodes)' ):
                 # Check for tv show title and season to make sure it's really an episode
                 if xbmc.getInfoLabel('VideoPlayer.Season') != "" and xbmc.getInfoLabel('VideoPlayer.TVShowTitle') != "":
                     self.type = "episode"
 
     def onPlayBackEnded( self ):
-        print "update when movie ended"
         if self.type == 'movie':
             self.action( 'movie')
         elif self.type == 'episode':
@@ -238,7 +234,6 @@ class MyPlayer(xbmc.Player):
         
 
     def onPlayBackStopped( self ):
-        print "update when movie stopted"
         if self.type == 'movie':
             self.action( 'movie')
         elif self.type == 'episode':
