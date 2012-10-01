@@ -30,7 +30,7 @@ class Main:
             self.WINDOW.clearProperty('WatchList_Running')
             self._fetch_info()
             # give a possible other instance some time to notice the empty property
-            xbmc.sleep(2000)
+            xbmc.sleep(1000)
             self.WINDOW.setProperty('WatchList_Running', 'True')
             self._daemon()
 
@@ -58,13 +58,12 @@ class Main:
             self._fetch_albums()
 
     def _fetch_movies( self ):
-        print 'start updating'
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "resume", "genre", "studio", "tagline", "runtime", "fanart", "thumbnail", "file", "plot", "plotoutline", "year", "lastplayed", "rating"], "sort": { "order": "descending", "method": "lastplayed" }, "filter": {"field": "inprogress", "operator": "true", "value": ""}, "limits": {"end": %d}}, "id": 1}' %self.LIMIT)
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('movies'):
-            count = 0
             self._clear_movie_properties()
+            count = 0
             for item in json_response['result']['movies']:
                 count += 1
                 self.WINDOW.setProperty( "WatchList_Movie.%d.Label" % ( count ), item['title'] )
@@ -79,8 +78,6 @@ class Main:
                 self.WINDOW.setProperty( "WatchList_Movie.%d.Thumb" % ( count ), item['thumbnail'] )
                 self.WINDOW.setProperty( "WatchList_Movie.%d.Path" % ( count ), item['file'] )
                 self.WINDOW.setProperty( "WatchList_Movie.%d.Rating" % ( count ), str(round(float(item['rating']),1)) )
-        log("movie list: %s items" % len(json_response))
-        print 'finished updating'
 
     def _fetch_tvshows( self ):
         # fetch all episodes in one query
@@ -88,8 +85,8 @@ class Main:
         json_query = unicode(json_query, 'utf-8', errors='ignore')
         json_response = simplejson.loads(json_query)
         if json_response.has_key('result') and json_response['result'] != None and json_response['result'].has_key('tvshows'):
-            count = 0
             self._clear_episode_properties()
+            count = 0
             for item in json_response['result']['tvshows']:
                 count += 1
                 print item['title']
@@ -123,7 +120,6 @@ class Main:
                 self.WINDOW.setProperty( "WatchList_Episode.%d.SeasonThumb" % ( count ), seasonthumb )
                 self.WINDOW.setProperty( "WatchList_Episode.%d.IsResumable" % ( count ), resumable )
                 self.WINDOW.setProperty( "WatchList_Episode.%d.Rating" % ( count ), rating )
-        log("tv show list: %s items" % len(json_response))
 
     def _fetch_seasonthumb( self, tvshowid, seasonnumber ):
         json_query = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetSeasons", "params": {"properties": ["season", "thumbnail"], "tvshowid":%s }, "id": 1}' % tvshowid)
@@ -141,14 +137,14 @@ class Main:
         json_response = unicode(json_response, 'utf-8', errors='ignore')
         jsonobject = simplejson.loads(json_response)
         if jsonobject['result'].has_key('albums'):
-            count = 0
             self._clear_album_properties()
+            count = 0
             for item in jsonobject['result']['albums']:
                 count += 1
                 rating = str(item['rating'])
                 if rating == '48':
                     rating = ''
-                path = 'XBMC.RunScript(' + __addonid__ + ',albumid=' + str(item['albumid']) + ')'
+                path = 'XBMC.RunScript(' + __addonid__ + ',albumid=' + str(item.get('albumid')) + ')'
                 self.WINDOW.setProperty( "WatchList_Album.%d.Label" % ( count ), item['title'] )
                 self.WINDOW.setProperty( "WatchList_Album.%d.Artist" % ( count ), " / ".join(item['artist']) )
                 self.WINDOW.setProperty( "WatchList_Album.%d.Genre" % ( count ), " / ".join(item['genre']) )
@@ -170,23 +166,25 @@ class Main:
             log('script stopped: new script instance started')
 
     def _clear_movie_properties( self ):
+        count = 0
         for count in range( int(self.LIMIT) ):
             count += 1
             self.WINDOW.clearProperty( "WatchList_Movie.%d.Label" % ( count ) )
 
     def _clear_episode_properties( self ):
+        count = 0
         for count in range( int(self.LIMIT) ):
             count += 1
             self.WINDOW.clearProperty( "WatchList_Episode.%d.Label" % ( count ) )
 
     def _clear_album_properties( self ):
+        count = 0
         for count in range( int(self.LIMIT) ):
             count += 1
             self.WINDOW.clearProperty( "WatchList_Album.%d.Label" % ( count ) )
 
-
     def _update( self, type):
-        xbmc.sleep(100)
+        xbmc.sleep(500)
         if type == 'movie':
             self._fetch_movies()
         elif type == 'episode':
@@ -198,71 +196,56 @@ class MyPlayer(xbmc.Player):
     def __init__( self, *args, **kwargs ):
         xbmc.Player.__init__( self )
         self.action = kwargs[ "action" ]
-        self.movies = kwargs[ "movies" ]
-        self.episodes = kwargs[ "episodes" ]
-        self.albums = kwargs[ "albums" ]
         self.substrings = [ '-trailer', 'http://' ]
-        self.timer = ""
-        self.initValues()
 
     def onPlayBackStarted( self ):
-        xbmc.sleep(5000)
-        if type == 'movie':
-            self._fetch_movies()
-        elif type == 'episode':
-            self._fetch_tvshows()
-        elif type == 'album':
-            self._fetch_albums()
+        xbmc.sleep(1000)
+        self.type = ""
+        # Set values based on the file content
+        if ( self.isPlayingAudio() ):
+            self.type = "album"  
+        else:
+            if xbmc.getCondVisibility( 'VideoPlayer.Content(movies)' ):
+                print "it is a movie"
+                filename = ''
+                isMovie = True
+                try:
+                    filename = self.getPlayingFile()
+                except:
+                    pass
+                if filename != '':
+                    for string in self.substrings:
+                        if string in filename:
+                            isMovie = False
+                            break
+                if isMovie:
+                    self.type = "movie"
+                    print "confirmed movie"
+            elif xbmc.getCondVisibility( 'VideoPlayer.Content(episodes)' ):
+                # Check for tv show title and season to make sure it's really an episode
+                if xbmc.getInfoLabel('VideoPlayer.Season') != "" and xbmc.getInfoLabel('VideoPlayer.TVShowTitle') != "":
+                    self.type = "episode"
 
     def onPlayBackEnded( self ):
-        self.stopTimer()
-        if self.type == 'album':
-            self.action( 'album', self.item, True )
+        print "update when movie ended"
         if self.type == 'movie':
-            self.action( 'movie', self.item, True )
-        if self.type == 'episode':
-            self.action( 'episode', self.item, True )
-        self.initValues()
+            self.action( 'movie')
+        elif self.type == 'episode':
+            self.action( 'episode')
+        elif self.type == 'album':
+            self.action( 'album')
+        self.type = ""
+        
 
     def onPlayBackStopped( self ):
-        self.stopTimer()
-        if self.type == 'album':
-            self.action( 'album', self.item, True )
+        print "update when movie stopted"
         if self.type == 'movie':
-            self.action( 'movie', self.item, ( self.time < 3*60 or self.totalTime * 0.9 <= self.time ) )
-        if self.type == 'episode':
-            self.action( 'episode', self.item, ( self.totalTime * 0.9 <= self.time ) )
-        self.initValues()
-
-    def initValues( self ):
-        self.item = []
+            self.action( 'movie')
+        elif self.type == 'episode':
+            self.action( 'episode')
+        elif self.type == 'album':
+            self.action( 'album')
         self.type = ""
-        self.time = 0
-        self.totaltime = 0
-
-    def startTimer( self ):
-        runtime = 0
-        self.shutdown = False
-        setTime = False
-        while( self.isPlaying() and self.shutdown == False ):
-            try:
-                runtime = self.getTime()
-                setTime = True
-            except:
-                setTime = False
-            if (runtime <= 2):
-                xbmc.sleep(3000)
-            else:
-                xbmc.sleep(1000)
-            if setTime:
-                self.time = runtime
-
-    def stopTimer( self ):
-        if self.timer != "":
-            self.shutdown = True
-            xbmc.sleep(100)
-            if self.timer.isAlive():
-                self.timer.join()
 
 if ( __name__ == "__main__" ):
     log('script version %s started' % __addonversion__)
