@@ -1,3 +1,9 @@
+v12.0.4
+- Bump miniumum XBMC version
+
+v12.0.2
+- Use new JSON-RPC methods for retrieving data
+
 v12.0.2
 - use join method for array to string conversion
 
