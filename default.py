@@ -47,7 +47,8 @@ class Main:
 
     def _init_vars( self ):
         self.WINDOW = xbmcgui.Window( 10000 )
-        self.Player = MyPlayer( action = self._update, movies = ( self.MOVIES == 'true' ), episodes = ( self.EPISODES == 'true' ), albums = ( self.ALBUMS == 'true' ) )
+        self.Player = MyPlayer( action = self._update)
+        self.Monitor = MyMonitor(action = self._update)
 
     def _fetch_info( self ):
         if self.MOVIES == 'true':
@@ -184,12 +185,24 @@ class Main:
 
     def _update( self, type):
         xbmc.sleep(500)
+        print 'updated db'
         if type == 'movie':
             self._fetch_movies()
         elif type == 'episode':
             self._fetch_tvshows()
+        elif type == 'video':
+            self._fetch_movies()
+            self._fetch_tvshows()
         elif type == 'album':
             self._fetch_albums()
+
+class MyMonitor(xbmc.Monitor):
+    def __init__( self, *args, **kwargs ):
+        xbmc.Monitor.__init__( self )
+        self.action = kwargs['action']
+
+    def onDatabaseUpdated( self, database):
+        self.action(database)
 
 class MyPlayer(xbmc.Player):
     def __init__( self, *args, **kwargs ):

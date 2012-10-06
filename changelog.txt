@@ -1,3 +1,6 @@
+v12.0.5
+- Add onDatabaseUpdate monitor to refresh the lists
+
 v12.0.4
 - Bump miniumum XBMC version
 
