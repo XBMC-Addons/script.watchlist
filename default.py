@@ -185,7 +185,6 @@ class Main:
 
     def _update( self, type):
         xbmc.sleep(500)
-        print 'updated db'
         if type == 'movie':
             self._fetch_movies()
         elif type == 'episode':
