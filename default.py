@@ -192,7 +192,7 @@ class Main:
         elif type == 'video':
             self._fetch_movies()
             self._fetch_tvshows()
-        elif type == 'album':
+        elif type == 'album'  or type == 'music':
             self._fetch_albums()
 
 class MyMonitor(xbmc.Monitor):
